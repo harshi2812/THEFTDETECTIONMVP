@@ -1,0 +1,2 @@
+# Shoplifting Detection MVP
+A minimal Streamlit app running YOLOv12 to detect shoplifting behaviour.

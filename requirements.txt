@@ -1,0 +1,6 @@
+git+https://github.com/sunsmarterjie/yolov12.git
+torch
+torchvision
+streamlit
+Pillow
+opencv-python-headless
