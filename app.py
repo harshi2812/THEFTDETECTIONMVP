@@ -9,6 +9,13 @@ from ultralytics import YOLO
 
 st.set_page_config(page_title="Shoplifting Detection", layout="wide")
 st.title("🛍️ Shoplifting Detection using YOLOv8")
+try:
+    import cv2
+except ImportError as e:
+    raise RuntimeError(
+        "⚠️ OpenCV failed to import. If running on Streamlit Cloud, "
+        "add 'runtime.txt' with 'python-3.10' or reinstall opencv-python-headless."
+    ) from e
 
 # Sidebar configuration
 st.sidebar.header("Settings")
@@ -74,3 +81,4 @@ if uploaded_video is not None:
         st.video(out_path)
 else:
     st.info("Please upload a video to begin.")
+
