@@ -1,30 +1,76 @@
 import streamlit as st
-from ultralytics import YOLO
-from PIL import Image
 import torch
+import cv2
+import numpy as np
+import tempfile
+import imutils
+from datetime import datetime
+from ultralytics import YOLO
 
-st.title("🛒 Shoplifting Detection MVP (YOLOv12)")
-st.write("Upload an image and detect suspicious activity.")
+st.set_page_config(page_title="Shoplifting Detection", layout="wide")
+st.title("🛍️ Shoplifting Detection using YOLOv8")
 
-# Load model once
-@st.cache_resource
-def load_model():
-    model = YOLO("best.pt")
-    return model
+# Sidebar configuration
+st.sidebar.header("Settings")
+weights_path = st.sidebar.text_input("Model Weights Path (.pt)", "best.pt")
+confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.1, 1.0, 0.5)
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-model = load_model()
+uploaded_video = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
+if uploaded_video is not None:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
+        temp_video.write(uploaded_video.read())
+        input_video_path = temp_video.name
 
-# Upload image
-uploaded_file = st.file_uploader("Upload image", type=["jpg", "jpeg", "png", "webp"])
+    st.video(input_video_path)
 
-if uploaded_file:
-    img = Image.open(uploaded_file)
-    st.image(img, caption="Uploaded Image", use_column_width=True)
+    if st.button("Run Detection 🚀"):
+        st.write("**Processing video... Please wait.**")
 
-    # Inference
-    st.write("Running detection...")
-    results = model(img)
+        model = YOLO(weights_path)
+        cap = cv2.VideoCapture(input_video_path)
+        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    # Show results
-    res_plotted = results[0].plot()
-    st.image(res_plotted, caption="Detection Results", use_column_width=True)
+        out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        out = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+
+        frame_count = 0
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        progress = st.progress(0)
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            frame_count += 1
+            frame = imutils.resize(frame, width=800)
+            results = model.predict(frame, device=device, conf=confidence_threshold, verbose=False)
+            boxes = results[0].boxes
+
+            for box in boxes:
+                x1, y1, x2, y2 = box.xyxy[0].int().tolist()
+                conf = float(box.conf[0])
+                cls = int(box.cls[0])
+                label = model.names[cls]
+
+                color = (0, 255, 255) if cls == 1 else (255, 255, 255)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(frame, f"{label} {conf:.2f}", (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            cv2.putText(frame, f"Frame {frame_count}/{total_frames}", (10, height - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+
+            out.write(frame)
+            progress.progress(frame_count / total_frames)
+
+        cap.release()
+        out.release()
+        st.success("✅ Processing Complete!")
+        st.video(out_path)
+else:
+    st.info("Please upload a video to begin.")
