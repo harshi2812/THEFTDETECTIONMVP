@@ -1,6 +1,8 @@
-git+https://github.com/sunsmarterjie/yolov12.git
-torch
-torchvision
-streamlit
-Pillow
-opencv-python-headless
+ultralytics==8.2.70
+torch>=2.0.0
+torchvision>=0.15.0
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+imutils>=0.5.4
+Pillow>=10.0.0
+streamlit>=1.33.0
